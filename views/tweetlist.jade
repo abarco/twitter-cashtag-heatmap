@@ -1,0 +1,12 @@
+doctype 5
+html
+    head
+        title Node.js, Twitter Stream, Socket.io
+    body
+        h1.
+            Tweet List
+        ul
+            each tweet, i in tweetlist
+                li(data_symbol='#{tweet}')= tweet.symbol + ' is found in:'
+                   div
+                   strong= tweet.tweet

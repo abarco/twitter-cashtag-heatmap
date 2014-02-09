@@ -3,18 +3,21 @@
  */
 var express = require('express')
   , io = require('socket.io')
+  , tweets = require('./routes/tweetlist')
   , http = require('http')
   , twitter = require('ntwitter')
   , cronJob = require('cron').CronJob
   , _ = require('underscore')
-  , path = require('path');
+  , path = require('path')
+  , mongo = require('mongodb')
+  , monk = require('monk')
+  , db = monk('localhost:27017/twitter-cashtag-heatmap');
 
 //Create an express app
 var app = express();
 
 //Create the HTTP server with the express app as an argument
 var server = http.createServer(app);
-
 
 // Twitter symbols array
 var watchSymbols = ['$msft', '$intc', '$hpq', '$goog', '$nok', '$nvda', '$bac', '$orcl', '$csco', '$aapl', '$ntap', '$emc', '$t', '$ibm', '$vz', '$xom', '$cvx', '$ge', '$ko', '$jnj'];
@@ -51,6 +54,8 @@ if ('development' == app.get('env')) {
 app.get('/', function(req, res) {
 	res.render('index', { data: watchList });
 });
+
+app.get('/tweetlist', tweets.tweetlist(db));
 
 //Start a Socket.IO listen
 var sockets = io.listen(server);
@@ -90,19 +95,25 @@ t.stream('statuses/filter', { track: watchSymbols }, function(stream) {
     //want to increment the total counter...
     var claimed = false;
 
+    // Set our collection
+    var collection = db.get('tweetcollection');
+
     //Make sure it was a valid tweet
     if (tweet.text !== undefined) {
 
       //We're gunna do some indexOf comparisons and we want it to be case agnostic.
       var text = tweet.text.toLowerCase();
+      console.log("TWEET: " + text);
 
       //Go through every symbol and see if it was mentioned. If so, increment its counter and
       //set the 'claimed' variable to true to indicate something was mentioned so we can increment
       //the 'total' counter!
       _.each(watchSymbols, function(v) {
           if (text.indexOf(v.toLowerCase()) !== -1) {
+          //if(text.match(""+v+" " | " "+v+"." | ""+v+"." | " "+v+" "))
               watchList.symbols[v]++;
               claimed = true;
+              claimedSymbol = v;
           }
       });
 
@@ -110,6 +121,17 @@ t.stream('statuses/filter', { track: watchSymbols }, function(stream) {
       if (claimed) {
           //Increment total
           watchList.total++;
+
+          // Submit to the DB
+          collection.insert({
+            "tweet" : text,
+            "symbol": claimedSymbol
+          }, function (err, doc) {
+              if (err) {
+                  // If it failed, return error
+                  console.log("DB ERROR: There was a problem adding the information to the database.");
+              }
+            });
 
           //Send to all the clients
           sockets.sockets.emit('data', watchList);
