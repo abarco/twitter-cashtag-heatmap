@@ -14,5 +14,6 @@ results
 
 node_modules
 data
+tconfig.js
 
 npm-debug.log

@@ -11,7 +11,8 @@ var express = require('express'),
   path = require('path'),
   mongo = require('mongodb'),
   monk = require('monk'),
-  db = monk('localhost:27017/twitter-cashtag-heatmap');
+  db = monk('localhost:27017/twitter-cashtag-heatmap'),
+  tconfig = require('./tconfig.js');
 
 //Create an express app
 var app = express();
@@ -79,12 +80,7 @@ sockets.sockets.on('connection', function (socket) {
 //You will need to get your own key. Don't worry, it's free. But I cannot provide you one
 //since it will instantiate a connection on my behalf and will drop all other streaming connections.
 //Check out: https://dev.twitter.com/
-var t = new twitter({
-    consumer_key: '',                                       // <--- FILL ME IN
-    consumer_secret: '',                 // <--- FILL ME IN
-    access_token_key: '',       // <--- FILL ME IN
-    access_token_secret: ''             // <--- FILL ME IN
-  });
+var t = new twitter(tconfig.config);
 
 // //Tell the twitter API to filter on the watchSymbols 
 t.stream('statuses/filter', { track: watchSymbols }, function (stream) {
